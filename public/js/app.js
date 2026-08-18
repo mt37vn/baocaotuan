@@ -188,7 +188,7 @@ async function renderEmployees() {
     <div class="emp-row">
       <span class="emp-name">${escapeHtml(e.name)}${e.active ? '' : ' <span style="color:var(--muted)">(đã khóa)</span>'}</span>
       <span class="emp-count">${e.has_account ? 'Tài khoản: ' + escapeHtml(e.username) : 'Chưa có tài khoản'} · ${counts.get(e.id) || 0} việc trong bảng</span>
-      <button class="btn btn-sm" onclick="renameEmployee(${e.id}, '${escapeHtml(e.name)}')">Đổi tên</button>
+      <button class="btn btn-sm" onclick="showRenameModal(${e.id}, '${escapeHtml(e.name)}', '${escapeHtml(e.username || '')}')">Đổi tên</button>
       <button class="btn btn-sm" onclick="showAccountModal(${e.id}, ${e.has_account ? 1 : 0})">${e.has_account ? 'Đặt lại mật khẩu' : 'Tạo tài khoản'}</button>
       <button class="btn btn-sm" onclick="toggleEmployee(${e.id}, ${e.active ? 0 : 1})">${e.active ? 'Khóa' : 'Mở khóa'}</button>
       <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${e.id})">Xóa</button>
@@ -206,13 +206,33 @@ async function addEmployee() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-async function renameEmployee(id, oldName) {
-  const name = prompt('Đổi tên nhân viên:', oldName);
-  if (name === null || !name.trim()) return;
+function showRenameModal(id, name, username) {
+  openOverlay(`
+    <h3>Đổi tên nhân viên</h3>
+    <div class="field"><label>Tên hiển thị</label><input type="text" id="rnName" value="${escapeHtml(name)}"></div>
+    <div class="field"><label>Tên đăng nhập</label>
+      <input type="text" id="rnUser" value="${escapeHtml(username || '')}" ${username ? '' : 'placeholder="Chưa có tài khoản — nhập để tạo"'} autocomplete="username">
+      <div class="modal-sub">Để trống nếu chỉ đổi tên hiển thị.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeOverlay()">Hủy</button>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" onclick="saveRename(${id})">Lưu</button>
+    </div>`);
+  document.getElementById('rnName').focus();
+}
+
+async function saveRename(id) {
+  const name = document.getElementById('rnName').value.trim();
+  const username = document.getElementById('rnUser').value.trim();
+  if (!name) return toast('Tên không được để trống.', 'error');
+  const body = { name };
+  if (username) body.username = username;
   try {
-    await api('PATCH', `/api/employees/${id}`, { name: name.trim() });
+    await api('PATCH', `/api/employees/${id}`, body);
+    closeOverlay();
+    toast('Đã cập nhật.', 'ok');
     await renderEmployees();
-    toast('Đã đổi tên.', 'ok');
   } catch (e) { toast(e.message, 'error'); }
 }
 
