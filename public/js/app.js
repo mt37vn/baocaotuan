@@ -115,8 +115,6 @@ function showLoginModal() {
     <div class="field"><label>Tài khoản</label><input type="text" id="lUser" autocomplete="username"></div>
     <div class="field"><label>Mật khẩu</label><input type="password" id="lPass" autocomplete="current-password"></div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeOverlay()">Hủy</button>
-      <span class="spacer"></span>
       <button class="btn btn-primary" onclick="doLogin()">Đăng nhập</button>
     </div>`);
   document.getElementById('lUser').focus();

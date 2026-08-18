@@ -6,6 +6,7 @@ function openOverlay(html) {
 }
 
 function closeOverlay() {
+  if (isLoginRequired()) return;
   document.getElementById('modalOverlay').classList.add('hidden');
   modalTaskId = null;
 }
