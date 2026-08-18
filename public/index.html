@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bảng Báo Cáo Tuần</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">📊 Bảng Báo Cáo Tuần</div>
+    <nav class="nav">
+      <button class="nav-btn active" data-view="board">Báo cáo công việc</button>
+      <button class="nav-btn" data-view="weekly">Báo cáo tuần</button>
+      <button class="nav-btn" data-view="report">Báo cáo tháng</button>
+      <button class="nav-btn hidden" data-view="employees" id="navEmployees">Quản lý nhân viên</button>
+    </nav>
+    <div class="topbar-right">
+      <div class="director-box">
+        <span id="userName" class="director-name hidden"></span>
+        <button id="btnLogin" class="btn btn-sm">Đăng nhập</button>
+        <button id="btnChangePass" class="btn btn-sm hidden">Đổi mật khẩu</button>
+        <button id="btnLogout" class="btn btn-sm hidden">Đăng xuất</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="view-board" class="view">
+      <div class="toolbar">
+        <button id="btnPrev" class="btn">◀ Tuần trước</button>
+        <button id="btnToday" class="btn">Hôm nay</button>
+        <button id="btnNext" class="btn">Tuần sau ▶</button>
+        <span id="rangeLabel" class="range-label"></span>
+        <span class="spacer"></span>
+        <button id="btnAddTask" class="btn btn-primary">+ Tạo việc</button>
+        <a id="btnExportWeek" class="btn hidden" download>Xuất bảng (CSV)</a>
+      </div>
+      <div id="boardWrap" class="board-wrap">
+        <div id="board" class="board"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section id="view-weekly" class="view hidden">
+      <div class="toolbar">
+        <button id="btnWPrev" class="btn">◀ Tuần trước</button>
+        <button id="btnWToday" class="btn">Hôm nay</button>
+        <button id="btnWNext" class="btn">Tuần sau ▶</button>
+        <span id="weeklyRange" class="range-label"></span>
+      </div>
+      <div id="weeklyContent"></div>
+    </section>
+
+    <section id="view-report" class="view hidden">
+      <div class="toolbar">
+        <label class="lbl">Tháng:</label>
+        <input type="month" id="reportMonth">
+        <button id="btnReportLoad" class="btn">Xem</button>
+        <span class="spacer"></span>
+        <a id="btnExportMonthly" class="btn hidden" download>Xuất CSV</a>
+      </div>
+      <div id="reportContent"></div>
+    </section>
+
+    <section id="view-employees" class="view hidden">
+      <div class="toolbar">
+        <input type="text" id="newEmpName" placeholder="Tên nhân viên mới">
+        <button id="btnAddEmp" class="btn btn-primary">+ Thêm nhân viên</button>
+      </div>
+      <div id="empList"></div>
+    </section>
+  </main>
+
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div id="modalBox" class="modal-box"></div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/cardModal.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
