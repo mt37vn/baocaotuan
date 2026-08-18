@@ -12,6 +12,7 @@ async function init() {
   document.getElementById('btnLogout').addEventListener('click', logout);
   document.getElementById('btnChangePass').addEventListener('click', showChangePassModal);
   document.getElementById('btnSync').addEventListener('click', syncFromServer);
+  document.getElementById('btnPush').addEventListener('click', pushToServer);
 
   document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
   document.getElementById('btnPrev').addEventListener('click', () => shiftWindow(-1));
@@ -46,6 +47,7 @@ function applyAuthUI() {
     document.getElementById('btnExportWeek').classList.toggle('hidden', !isDirector());
     document.getElementById('btnExportMonthly').classList.toggle('hidden', !isDirector());
     document.getElementById('btnSync').classList.toggle('hidden', !(window.IS_LOCAL && isDirector()));
+    document.getElementById('btnPush').classList.toggle('hidden', !(window.IS_LOCAL && isDirector()));
   } else {
     uname.classList.add('hidden');
     document.getElementById('btnLogin').classList.remove('hidden');
@@ -55,8 +57,25 @@ function applyAuthUI() {
     document.getElementById('btnExportWeek').classList.add('hidden');
     document.getElementById('btnExportMonthly').classList.add('hidden');
     document.getElementById('btnSync').classList.add('hidden');
+    document.getElementById('btnPush').classList.add('hidden');
   }
   updateBanner();
+}
+
+async function pushToServer() {
+  if (!confirm('Đẩy toàn bộ dữ liệu local lên server?')) return;
+  const btn = document.getElementById('btnPush');
+  btn.disabled = true;
+  btn.textContent = '⬆️ Đang push...';
+  try {
+    const r = await api('POST', '/api/push');
+    toast(r.message || 'Đã push.', 'ok');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⬆️ Push lên server';
+  }
 }
 
 async function syncFromServer() {

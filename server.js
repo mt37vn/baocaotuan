@@ -51,6 +51,14 @@ if (IS_LOCAL) {
       res.json({ ok: true, message: (stdout || 'Đồng bộ xong.').trim() });
     });
   });
+
+  app.post('/api/push', requireDirector, (req, res) => {
+    const script = path.join(__dirname, 'scripts', 'push-to-server.sh');
+    execFile('/bin/bash', [script], { timeout: 120000 }, (err, stdout, stderr) => {
+      if (err) return res.status(500).json({ error: (stderr || err.message).trim() || 'Push thất bại.' });
+      res.json({ ok: true, message: (stdout || 'Push xong.').trim() });
+    });
+  });
 }
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Không tìm thấy API.' }));
