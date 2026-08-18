@@ -26,9 +26,9 @@ async function init() {
   document.getElementById('btnAddEmp').addEventListener('click', addEmployee);
 
   document.getElementById('modalOverlay').addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeOverlay();
+    if (e.target === e.currentTarget && !isLoginRequired()) closeOverlay();
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOverlay(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !isLoginRequired()) closeOverlay(); });
 
   BoardState.week = todayMonday();
   if (!me) {
@@ -107,6 +107,8 @@ function updateBanner() {
   }
 }
 
+function isLoginRequired() { return !me; }
+
 function showLoginModal() {
   openOverlay(`
     <h3>Đăng nhập</h3>
@@ -138,6 +140,7 @@ async function logout() {
   await api('POST', '/api/auth/logout');
   me = null;
   applyAuthUI();
+  showLoginModal();
 }
 
 function showChangePassModal() {
