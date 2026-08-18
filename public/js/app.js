@@ -2,11 +2,16 @@ async function init() {
   renderLegend();
   await refreshMe();
   document.getElementById('reportMonth').value = currentMonthStr();
+  try {
+    const sys = await api('GET', '/api/system');
+    window.IS_LOCAL = !!sys.local;
+  } catch (e) { window.IS_LOCAL = false; }
   applyAuthUI();
 
   document.getElementById('btnLogin').addEventListener('click', showLoginModal);
   document.getElementById('btnLogout').addEventListener('click', logout);
   document.getElementById('btnChangePass').addEventListener('click', showChangePassModal);
+  document.getElementById('btnSync').addEventListener('click', syncFromServer);
 
   document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
   document.getElementById('btnPrev').addEventListener('click', () => shiftWindow(-1));
@@ -40,6 +45,7 @@ function applyAuthUI() {
     document.getElementById('navEmployees').classList.toggle('hidden', !isDirector());
     document.getElementById('btnExportWeek').classList.toggle('hidden', !isDirector());
     document.getElementById('btnExportMonthly').classList.toggle('hidden', !isDirector());
+    document.getElementById('btnSync').classList.toggle('hidden', !(window.IS_LOCAL && isDirector()));
   } else {
     uname.classList.add('hidden');
     document.getElementById('btnLogin').classList.remove('hidden');
@@ -48,8 +54,25 @@ function applyAuthUI() {
     document.getElementById('navEmployees').classList.add('hidden');
     document.getElementById('btnExportWeek').classList.add('hidden');
     document.getElementById('btnExportMonthly').classList.add('hidden');
+    document.getElementById('btnSync').classList.add('hidden');
   }
   updateBanner();
+}
+
+async function syncFromServer() {
+  const btn = document.getElementById('btnSync');
+  btn.disabled = true;
+  btn.textContent = '🔄 Đang đồng bộ...';
+  try {
+    const r = await api('POST', '/api/sync');
+    toast(r.message || 'Đã đồng bộ.', 'ok');
+    await loadBoard();
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 Đồng bộ';
+  }
 }
 
 function updateBanner() {
