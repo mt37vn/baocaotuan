@@ -68,7 +68,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Lỗi máy chủ.' });
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: res => res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'),
+}));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 initWeekMarker();
