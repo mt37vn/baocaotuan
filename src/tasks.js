@@ -49,7 +49,7 @@ function weeksOfTasks(taskIds, rangeStart, rangeEnd) {
 }
 
 // ---- Bảng tuần ----
-router.get('/board', (req, res) => {
+router.get('/board', requireActor, (req, res) => {
   const from = req.query.from ? mondayOfISO(String(req.query.from)) : addWeeks(todayMonday(), -4);
   const to = req.query.to ? mondayOfISO(String(req.query.to)) : todayMonday();
   const weeks = [];

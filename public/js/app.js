@@ -31,7 +31,11 @@ async function init() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOverlay(); });
 
   BoardState.week = todayMonday();
-  switchView('board');
+  if (!me) {
+    showLoginModal();
+  } else {
+    switchView('board');
+  }
 }
 
 function applyAuthUI() {

@@ -1,6 +1,6 @@
 const express = require('express');
 const { db } = require('./db');
-const { requireDirector } = require('./auth');
+const { requireDirector, requireActor } = require('./auth');
 const { todayMonday, addWeeks, monthRange, mondayOfISO, weekLabel, monthLabel } = require('./dates');
 
 const router = express.Router();
@@ -55,7 +55,7 @@ function monthlyReport(month) {
   return { month, monthLabel: monthLabel(month), rows };
 }
 
-router.get('/report/monthly', (req, res) => {
+router.get('/report/monthly', requireActor, (req, res) => {
   const month = /^\d{4}-\d{2}$/.test(String(req.query.month || '')) ? String(req.query.month) : currentMonth();
   res.json(monthlyReport(month));
 });

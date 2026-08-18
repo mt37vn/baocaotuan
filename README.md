@@ -6,6 +6,7 @@ Web app báo cáo công việc tuần: **cột = tuần, hàng = nhân viên, c�
 - Bảng tuần theo thứ Hai; đầu tuần **tự động đẩy** các việc chưa hoàn thành sang tuần mới.
 - Nhân viên phải **nhập kết quả** trước khi mark done → chờ Giám đốc **duyệt** hoặc **trả lại**.
 - Nhân viên chọn tên (không mật khẩu) để tạo việc cho **chính mình**; Giám đốc đăng nhập để giao việc, duyệt, chuyển/xóa, quản lý nhân viên.
+- **Bắt buộc đăng nhập** để xem bảng; nhân viên thấy toàn bộ công ty nhưng dòng của mình được đưa lên đầu.
 - Nhật ký tiến độ từng tuần trên mỗi thẻ.
 - **Tuổi thẻ** = số tuần thẻ đã tồn tại; càng lâu màu càng đậm (xanh nhạt → đỏ đậm).
 - Báo cáo thống kê **hàng tháng** (việc giao, hoàn thành, tỷ lệ, tồn đọng, tuổi TB) + biểu đồ + xuất **CSV** (mở được bằng Excel).
@@ -39,4 +40,4 @@ sqlite3 data/app.db ".backup 'backup-$(date +%F).db'"
 ```
 
 ## Ghi chú mô hình tin cậy
-Nhân viên **có tài khoản riêng** (username + mật khẩu) do **Giám đốc tạo/đặt lại** trong trang Quản lý nhân viên. Bảng **xem tự do** (không cần đăng nhập), nhưng muốn **tạo việc, ghi/sửa nhật ký, báo cáo hoàn thành** thì phải đăng nhập — mọi thao tác được ghi nhận theo đúng tài khoản (session) và lưu vào lịch sử thẻ để truy vết. Nhân viên chỉ tạo việc cho chính mình; Giám đốc giao việc cho bất kỳ ai. Ai cũng có thể đổi mật khẩu của mình (nút "Đổi mật khẩu" khi đã đăng nhập).
+Nhân viên **có tài khoản riêng** (username + mật khẩu) do **Giám đốc tạo/đặt lại** trong trang Quản lý nhân viên. **Bắt buộc đăng nhập** để xem bảng. Nhân viên thấy toàn bộ bảng của công ty nhưng dòng của bản thân được đưa lên đầu; muốn **tạo việc, ghi/sửa nhật ký, báo cáo hoàn thành** phải đăng nhập — mọi thao tác được ghi nhận theo đúng tài khoản (session) và lưu vào lịch sử thẻ để truy vết. Nhân viên chỉ tạo việc cho chính mình; Giám đốc giao việc cho bất kỳ ai. Ai cũng có thể đổi mật khẩu của mình (nút "Đổi mật khẩu" khi đã đăng nhập).

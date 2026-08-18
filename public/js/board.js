@@ -130,11 +130,15 @@ function kanbanBuckets(tasks, week) {
 function renderBoard() {
   const board = document.getElementById('board');
   const week = BoardState.week;
-  const showAll = !me || isDirector();
-  const visibleEmps = showAll
-    ? BoardState.employees
-    : BoardState.employees.filter(e => e.id === Number(actorId()));
-  board.className = 'board' + (showAll ? '' : ' board-single');
+  const emps = [...BoardState.employees];
+  if (me && !isDirector()) {
+    const i = emps.findIndex(e => e.id === Number(actorId()));
+    if (i > 0) {
+      const mine = emps.splice(i, 1)[0];
+      emps.unshift(mine);
+    }
+  }
+  board.className = 'board';
   board.innerHTML = '';
 
   const byEmp = new Map();
@@ -149,7 +153,7 @@ function renderBoard() {
     journalsByTask.get(j.task_id).push(j);
   }
 
-  for (const emp of visibleEmps) {
+  for (const emp of emps) {
     const block = document.createElement('div');
     block.className = 'emp-kanban';
     const eh = document.createElement('div');

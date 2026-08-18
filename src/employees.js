@@ -5,7 +5,7 @@ const { requireDirector } = require('./auth');
 
 const router = express.Router();
 
-router.get('/employees', (req, res) => {
+router.get('/employees', requireDirector, (req, res) => {
   const rows = db.prepare("SELECT id, name, role, active, sort_order, username, created_at, (username IS NOT NULL) AS has_account FROM users WHERE role = 'employee' ORDER BY sort_order, name").all();
   res.json(rows);
 });
