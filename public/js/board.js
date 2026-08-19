@@ -59,6 +59,14 @@ function cardElement(task, ctx) {
   l.className = 'card-last';
   l.textContent = ctx.lastText;
   div.appendChild(l);
+  if (task.assignee_ids.length > 1) {
+    const names = task.assignee_ids.map(id => empName(id));
+    const chip = document.createElement('div');
+    chip.className = 'card-shared';
+    chip.textContent = `👥 ${task.assignee_ids.length} người`;
+    chip.title = `Giao cho: ${names.join(', ')}`;
+    div.appendChild(chip);
+  }
   div.addEventListener('click', e => { e.stopPropagation(); openTaskModal(task.id); });
   return div;
 }
@@ -111,13 +119,16 @@ async function quickAddEmployee() {
 function kanbanBuckets(tasks, week) {
   const buckets = { done: [], inprog: [], plan: [] };
   const prevWeek = addWeeks(week, -1);
+  const journaled = new Set(
+    BoardState.journals.filter(j => j.week_start === week).map(j => j.task_id)
+  );
   for (const t of tasks) {
     if (t.status === 'pending_approval' || t.status === 'cancelled') buckets.done.push(t);
     else if (t.status === 'done') {
       const cw = t.completed_week_start;
       if (!cw || cw === week || cw === prevWeek) buckets.done.push(t);
     }
-    else if (t.created_week_start === week) buckets.plan.push(t);
+    else if (t.created_week_start === week && !journaled.has(t.id)) buckets.plan.push(t);
     else buckets.inprog.push(t);
   }
   const sortByAge = (a, b) => (b.age - a.age) || String(a.title).localeCompare(String(b.title), 'vi');
@@ -143,8 +154,10 @@ function renderBoard() {
 
   const byEmp = new Map();
   for (const t of BoardState.tasks) {
-    if (!byEmp.has(t.assignee_id)) byEmp.set(t.assignee_id, []);
-    byEmp.get(t.assignee_id).push(t);
+    for (const aid of t.assignee_ids) {
+      if (!byEmp.has(aid)) byEmp.set(aid, []);
+      byEmp.get(aid).push(t);
+    }
   }
 
   const journalsByTask = new Map();

@@ -5,6 +5,7 @@ db.exec(`
   DELETE FROM task_history;
   DELETE FROM task_journals;
   DELETE FROM task_weeks;
+  DELETE FROM task_assignees;
   DELETE FROM tasks;
   DELETE FROM users WHERE role = 'employee';
 `);
@@ -105,6 +106,7 @@ const insertTask = db.prepare(`
     result_text, result_at, completed_week_start, completed_at, approved_at, reopened_at, created_at, updated_at)
   VALUES (?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
+const insertAssignee = db.prepare('INSERT INTO task_assignees (task_id, user_id) VALUES (?, ?)');
 const insertWeek = db.prepare('INSERT INTO task_weeks (task_id, week_start, is_carried) VALUES (?, ?, ?)');
 const insertJournal = db.prepare('INSERT INTO task_journals (task_id, week_start, author_id, note, created_at) VALUES (?, ?, ?, ?, ?)');
 const insertHistory = db.prepare('INSERT INTO task_history (task_id, action, by_user_id, detail, created_at) VALUES (?, ?, ?, ?, ?)');
@@ -126,6 +128,7 @@ for (const o of TASKS) {
   const info = insertTask.run(o.t, o.a, createdBy, o.cw, o.st,
     result_text, result_at, completed_week, completed_at, approved_at, reopened_at, created_at, created_at);
   const id = info.lastInsertRowid;
+  insertAssignee.run(id, o.a);
 
   for (const w of o.wk) insertWeek.run(id, w, w === o.cw ? 0 : 1);
 

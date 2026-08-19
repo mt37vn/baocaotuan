@@ -6,7 +6,9 @@ set -euo pipefail
 
 SSH_KEY="${PUSH_SSH_KEY:-$HOME/.ssh/baocaotuan_deploy}"
 SSH_HOST="${PUSH_SSH_HOST:-root@103.232.121.14}"
-REMOTE_DATA="${PUSH_REMOTE_DATA:-/opt/baocaotuan/data}"
+REMOTE_DIR="${PUSH_REMOTE_DIR:-/opt/baocaotuan}"
+REMOTE_DATA="${PUSH_REMOTE_DATA:-$REMOTE_DIR/data}"
+COMPOSE_FILE="$REMOTE_DIR/docker-compose.yml"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOCAL_DATA="${PUSH_LOCAL_DATA:-$ROOT/data}"
 LOG_FILE="${PUSH_LOG:-$ROOT/logs/push.log}"
@@ -44,10 +46,22 @@ if [ -f "$LOCAL_DATA/.admin_password" ]; then
   rsync -az -e "ssh -i $SSH_KEY" "$LOCAL_DATA/.admin_password" "$SSH_HOST:/tmp/$TMP_REMOTE/admin" || true
 fi
 
-ssh -i "$SSH_KEY" "$SSH_HOST" "pm2 stop baocaotuan && \
+REMOTE_HAS_DOCKER="$(ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$SSH_KEY" "$SSH_HOST" \
+  "command -v docker >/dev/null 2>&1 && [ -f '$COMPOSE_FILE' ] && echo yes || echo no")"
+if [ "$REMOTE_HAS_DOCKER" = "yes" ]; then
+  MGR_CMD="docker compose -f $COMPOSE_FILE"
+else
+  MGR_CMD="pm2"
+  log "Cảnh báo: server chưa chạy docker (không thấy $COMPOSE_FILE), dùng pm2."
+fi
+
+ssh -i "$SSH_KEY" "$SSH_HOST" "mkdir -p '$REMOTE_DATA/backups' && \
+  [ -f '$REMOTE_DATA/app.db' ] && [ ! -f '$REMOTE_DATA/backups/app-$(date +%F).db' ] && \
+  sqlite3 '$REMOTE_DATA/app.db' \".backup '$REMOTE_DATA/backups/app-$(date +%F).db'\" || true; \
+  $MGR_CMD stop baocaotuan && \
   cp /tmp/$TMP_REMOTE/app.db '$REMOTE_DATA/app.db' && \
   cp /tmp/$TMP_REMOTE/admin '$REMOTE_DATA/.admin_password' && \
   rm -f '$REMOTE_DATA/app.db-wal' '$REMOTE_DATA/app.db-shm' && \
-  pm2 restart baocaotuan"
+  $MGR_CMD start baocaotuan"
 
-log "Push xong: app.db = $(stat -f '%z' "$LOCAL_DATA/app.db") bytes."
+log "Push xong: app.db = $(wc -c < "$LOCAL_DATA/app.db" | tr -d ' ') bytes."

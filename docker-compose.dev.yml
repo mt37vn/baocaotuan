@@ -1,0 +1,8 @@
+# Chạy local bằng Docker và bật nút "Đồng bộ" / "Push lên server":
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+services:
+  app:
+    environment:
+      IS_LOCAL: "1"
+    volumes:
+      - ${HOME}/.ssh:/root/.ssh:ro

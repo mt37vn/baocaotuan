@@ -258,3 +258,21 @@ table.rpt tr.total td { background: #f0f6ff; font-weight: 700; }
   background: #fff8e1; border: 1px solid #ffe082; color: #7a5c00;
   padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px;
 }
+
+/* ---------- Chia việc nhiều người ---------- */
+.card-shared {
+  display: inline-block; margin-top: 5px; font-size: 11px; font-weight: 600;
+  padding: 1px 8px; border-radius: 10px; background: #ede7f6; color: #5e35b1;
+}
+.multi-assign {
+  display: flex; flex-wrap: wrap; gap: 4px 12px; background: #f7f9fb;
+  border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;
+}
+.multi-assign .chk { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
+.multi-assign input[type=checkbox] { accent-color: var(--primary); }
+.who-chip {
+  display: inline-block; font-size: 12px; font-weight: 600; margin: 1px 4px 1px 0;
+  padding: 2px 8px; border-radius: 12px; background: #eef1f4; white-space: nowrap;
+}
+.grp-item { margin-bottom: 4px; }
+.grp-item b { color: var(--primary); }

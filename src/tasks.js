@@ -10,10 +10,24 @@ function getTask(id) {
   return db.prepare('SELECT * FROM tasks WHERE id = ?').get(Number(id));
 }
 
+function assigneeIds(taskId) {
+  const rows = db.prepare('SELECT user_id FROM task_assignees WHERE task_id = ?').all(Number(taskId));
+  return rows.length ? rows.map(r => r.user_id) : null;
+}
+
+function isAssignee(task, userId) {
+  if (!userId) return false;
+  if (task.assignee_id === Number(userId)) return true;
+  const r = db.prepare('SELECT 1 FROM task_assignees WHERE task_id = ? AND user_id = ?').get(task.id, Number(userId));
+  return !!r;
+}
+
 function taskPayload(t) {
+  const aids = assigneeIds(t.id);
   return {
     id: t.id, title: t.title, description: t.description,
-    assignee_id: t.assignee_id, created_by: t.created_by,
+    assignee_id: t.assignee_id, assignee_ids: aids || [t.assignee_id],
+    created_by: t.created_by,
     created_week_start: t.created_week_start, status: t.status,
     result_text: t.result_text, result_at: t.result_at,
     completed_week_start: t.completed_week_start, completed_at: t.completed_at,
@@ -28,7 +42,7 @@ function getEmployee(id) {
 }
 
 function upsertJournal(taskId, weekStart, authorId, note) {
-  const existing = db.prepare('SELECT id FROM task_journals WHERE task_id = ? AND week_start = ?').get(taskId, weekStart);
+  const existing = db.prepare('SELECT id FROM task_journals WHERE task_id = ? AND author_id = ? AND week_start = ?').get(taskId, authorId, weekStart);
   if (existing) {
     db.prepare('UPDATE task_journals SET note = ?, author_id = ? WHERE id = ?').run(note, authorId, existing.id);
     return { journal: db.prepare('SELECT * FROM task_journals WHERE id = ?').get(existing.id), updated: true };
@@ -85,18 +99,26 @@ router.get('/board', requireActor, (req, res) => {
 
 // ---- Tạo thẻ ----
 router.post('/tasks', requireActor, (req, res) => {
-  const { title, description, assignee_id, week_start } = req.body || {};
+  const { title, description, assignee_id, assignee_ids, week_start } = req.body || {};
   if (!title || !String(title).trim()) return res.status(400).json({ error: 'Thiếu tên công việc.' });
 
-  let assignee;
+  let assignees = [];
   if (req.actor.role === 'director') {
-    assignee = assignee_id ? getEmployee(assignee_id) : null;
-    if (!assignee) return res.status(400).json({ error: 'Chọn nhân viên phụ trách.' });
+    const raw = Array.isArray(assignee_ids) && assignee_ids.length
+      ? assignee_ids
+      : (assignee_id ? [assignee_id] : []);
+    const ids = [...new Set(raw.map(Number).filter(Boolean))];
+    assignees = ids.map(getEmployee).filter(Boolean);
+    if (assignees.length !== ids.length) {
+      return res.status(400).json({ error: 'Có nhân viên không hợp lệ trong danh sách.' });
+    }
+    if (!assignees.length) return res.status(400).json({ error: 'Chọn ít nhất 1 nhân viên phụ trách.' });
   } else {
-    assignee = db.prepare('SELECT * FROM users WHERE id = ? AND active = 1').get(req.actor.id);
+    const self = db.prepare('SELECT * FROM users WHERE id = ? AND active = 1').get(req.actor.id);
     if (assignee_id && Number(assignee_id) !== req.actor.id) {
       return res.status(403).json({ error: 'Nhân viên chỉ được tạo việc cho chính mình.' });
     }
+    assignees = [self];
   }
 
   let wk = week_start ? String(week_start) : todayMonday();
@@ -112,26 +134,29 @@ router.post('/tasks', requireActor, (req, res) => {
   const info = db.prepare(`
     INSERT INTO tasks (title, description, assignee_id, created_by, created_week_start)
     VALUES (?, ?, ?, ?, ?)`)
-    .run(String(title).trim(), String(description || '').trim(), assignee.id, req.actor.id, wk);
+    .run(String(title).trim(), String(description || '').trim(), assignees[0].id, req.actor.id, wk);
+  const taskId = info.lastInsertRowid;
 
-  db.prepare('INSERT INTO task_weeks (task_id, week_start, is_carried) VALUES (?, ?, 0)').run(info.lastInsertRowid, wk);
-  insertHistory(info.lastInsertRowid, 'created', req.actor.id, `Tạo việc cho ${assignee.name}`);
+  const insAssignee = db.prepare('INSERT INTO task_assignees (task_id, user_id) VALUES (?, ?)');
+  for (const a of assignees) insAssignee.run(taskId, a.id);
+  db.prepare('INSERT INTO task_weeks (task_id, week_start, is_carried) VALUES (?, ?, 0)').run(taskId, wk);
+  insertHistory(taskId, 'created', req.actor.id, `Tạo việc cho ${assignees.map(a => a.name).join(', ')}`);
 
-  res.status(201).json({ task: taskPayload(getTask(info.lastInsertRowid)) });
+  res.status(201).json({ task: taskPayload(getTask(taskId)) });
 });
 
 // ---- Sửa thẻ ----
 router.patch('/tasks/:id', requireActor, (req, res) => {
   const task = getTask(req.params.id);
   if (!task) return res.status(404).json({ error: 'Không tìm thấy việc.' });
-  if (req.actor.role !== 'director' && task.assignee_id !== req.actor.id) {
+  if (req.actor.role !== 'director' && !isAssignee(task, req.actor.id)) {
     return res.status(403).json({ error: 'Chỉ được sửa việc của chính mình.' });
   }
   if (req.actor.role !== 'director' && task.status !== 'open') {
     return res.status(403).json({ error: 'Chỉ sửa được việc đang mở.' });
   }
 
-  const { title, description, assignee_id } = req.body || {};
+  const { title, description, assignee_id, assignee_ids } = req.body || {};
   const sets = [];
   const vals = [];
   let changes = [];
@@ -145,15 +170,25 @@ router.patch('/tasks/:id', requireActor, (req, res) => {
   if (description !== undefined) {
     sets.push('description = ?'); vals.push(String(description || '').trim());
   }
-  if (assignee_id !== undefined) {
-    if (req.actor.role !== 'director') return res.status(403).json({ error: 'Chỉ Giám đốc được chuyển việc.' });
-    const emp = getEmployee(assignee_id);
-    if (!emp) return res.status(400).json({ error: 'Nhân viên không hợp lệ.' });
-    if (emp.id !== task.assignee_id) {
-      sets.push('assignee_id = ?'); vals.push(emp.id);
-      changes.push(`Chuyển sang ${emp.name}`);
+
+  const newAssigneeIds = Array.isArray(assignee_ids) ? assignee_ids : (assignee_id !== undefined ? [assignee_id] : null);
+  if (newAssigneeIds !== null) {
+    if (req.actor.role !== 'director') return res.status(403).json({ error: 'Chỉ Giám đốc được đổi người phụ trách.' });
+    const ids = [...new Set(newAssigneeIds.map(Number).filter(Boolean))];
+    if (!ids.length) return res.status(400).json({ error: 'Chọn ít nhất 1 người phụ trách.' });
+    const emps = ids.map(getEmployee).filter(Boolean);
+    if (emps.length !== ids.length) return res.status(400).json({ error: 'Nhân viên không hợp lệ.' });
+
+    db.prepare('DELETE FROM task_assignees WHERE task_id = ?').run(task.id);
+    const insA = db.prepare('INSERT INTO task_assignees (task_id, user_id) VALUES (?, ?)');
+    for (const id of ids) insA.run(task.id, id);
+
+    if (ids[0] !== task.assignee_id) {
+      sets.push('assignee_id = ?'); vals.push(ids[0]);
     }
+    changes.push(`Giao cho ${emps.map(e => e.name).join(', ')}`);
   }
+
   if (!sets.length) return res.json({ task: taskPayload(task) });
 
   sets.push("updated_at = datetime('now','localtime')");
@@ -177,7 +212,7 @@ router.delete('/tasks/:id', requireDirector, (req, res) => {
 router.post('/tasks/:id/done', requireActor, (req, res) => {
   const task = getTask(req.params.id);
   if (!task) return res.status(404).json({ error: 'Không tìm thấy việc.' });
-  if (req.actor.role !== 'director' && task.assignee_id !== req.actor.id) {
+  if (req.actor.role !== 'director' && !isAssignee(task, req.actor.id)) {
     return res.status(403).json({ error: 'Chỉ người phụ trách được báo cáo hoàn thành.' });
   }
   if (task.status !== 'open') {
@@ -244,7 +279,7 @@ router.post('/tasks/:id/cancel', requireDirector, (req, res) => {
 router.post('/tasks/:id/journal', requireActor, (req, res) => {
   const task = getTask(req.params.id);
   if (!task) return res.status(404).json({ error: 'Không tìm thấy việc.' });
-  if (req.actor.role !== 'director' && task.assignee_id !== req.actor.id) {
+  if (req.actor.role !== 'director' && !isAssignee(task, req.actor.id)) {
     return res.status(403).json({ error: 'Chỉ người phụ trách được ghi nhật ký.' });
   }
   const note = String((req.body || {}).note || '').trim();

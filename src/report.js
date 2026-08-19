@@ -93,13 +93,14 @@ router.get('/export/week.csv', requireDirector, (req, res) => {
   const tasks = db.prepare(`
     SELECT t.*,
       (SELECT COUNT(*) FROM task_weeks w WHERE w.task_id = t.id) AS age,
-      (SELECT group_concat(week_start, '|') FROM (SELECT week_start FROM task_weeks WHERE task_id = t.id ORDER BY week_start)) AS weeks
+      (SELECT group_concat(week_start, '|') FROM (SELECT week_start FROM task_weeks WHERE task_id = t.id ORDER BY week_start)) AS weeks,
+      (SELECT group_concat(u.name, ', ') FROM task_assignees a JOIN users u ON u.id = a.user_id WHERE a.task_id = t.id) AS assignees
     FROM tasks t
     WHERE EXISTS (SELECT 1 FROM task_weeks x WHERE x.task_id = t.id AND x.week_start BETWEEN ? AND ?)
     ORDER BY t.created_at`).all(from, to);
 
   const rows = tasks.map(t => [
-    users.get(t.assignee_id) || '', t.title, t.description,
+    t.assignees || users.get(t.assignee_id) || '', t.title, t.description,
     users.get(t.created_by) || '', weekLabel(t.created_week_start),
     STATUS_LABEL[t.status] || t.status, t.result_text || '',
     t.age, (t.weeks || '').split('|').map(weekLabel).join('; '),

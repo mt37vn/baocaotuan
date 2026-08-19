@@ -74,23 +74,44 @@ function renderWeeklyReport() {
   const sortInReport = (a, b) =>
     ((empOrder.get(a.assignee_id) ?? 0) - (empOrder.get(b.assignee_id) ?? 0)) || (b.age - a.age);
 
+  const perPersonNotes = (t, tjs) => {
+    const byAuthor = new Map();
+    for (const j of tjs) {
+      if (!byAuthor.has(j.author_id)) byAuthor.set(j.author_id, []);
+      byAuthor.get(j.author_id).push(j);
+    }
+    const multi = t.assignee_ids.length > 1;
+    const parts = [];
+    for (const id of t.assignee_ids) {
+      const js = byAuthor.get(id);
+      if (!js || !js.length) {
+        if (multi) parts.push(`<div class="grp-item"><b>${escapeHtml(empName(id))}:</b> <span style="color:var(--muted)">Chưa có</span></div>`);
+        continue;
+      }
+      const latest = js.reduce((a, b) => (a.week_start >= b.week_start ? a : b));
+      let note = latest.note;
+      if (note.startsWith(RESULT_PREFIX)) note = note.slice(RESULT_PREFIX.length);
+      if (multi) parts.push(`<div class="grp-item"><b>${escapeHtml(empName(id))}:</b> ${escapeHtml(note)}</div>`);
+      else parts.push(escapeHtml(note));
+    }
+    return parts.join('') || '<span style="color:var(--muted)">—</span>';
+  };
+
   const section = (title, list, contentHeader, contentHtml) => {
     list.sort(sortInReport);
     const rows = list.map(t => {
       const tjs = journalsByTask.get(t.id) || [];
-      const latest = tjs.length ? tjs.reduce((a, b) => (a.week_start >= b.week_start ? a : b)) : null;
-      let note = latest ? latest.note : '';
-      if (note.startsWith(RESULT_PREFIX)) note = note.slice(RESULT_PREFIX.length);
       const activePrev = t.weeks.includes(prevWeek);
       const updatedPrev = tjs.some(j => j.week_start === prevWeek);
       const notUpdated = t.status === 'open' && activePrev && !updatedPrev;
       const titleCls = t.status === 'cancelled' ? ' cancelled-title' : '';
+      const who = t.assignee_ids.map(id => escapeHtml(empName(id))).join(', ');
       return `
         <tr>
           <td class="title${titleCls}" onclick="openTaskModal(${t.id})">${escapeHtml(t.title)}</td>
-          <td class="who">${escapeHtml(empName(t.assignee_id))}</td>
+          <td class="who">${who}</td>
           <td><span class="age-badge">${t.age} tuần</span></td>
-          <td>${contentHtml(t, { note, notUpdated })}</td>
+          <td>${contentHtml(t, { notUpdated, tjs, perPerson: perPersonNotes(t, tjs) })}</td>
         </tr>`;
     }).join('');
     return `
@@ -107,10 +128,8 @@ function renderWeeklyReport() {
     t.result_text ? escapeHtml(t.result_text) : '<span style="color:var(--muted)">—</span>',
     t.status === 'pending_approval' ? '<span class="warn-chip cell-warn">⏳ Chờ duyệt</span>' : '',
   ].join('');
-  const contentInprog = (t, ctx) => [
-    ctx.note ? escapeHtml(ctx.note) : '<span style="color:var(--muted)">—</span>',
-    ctx.notUpdated ? '<div class="warn-chip cell-warn">⚠ Chưa cập nhật tuần trước</div>' : '',
-  ].join('');
+  const contentInprog = (t, ctx) => ctx.perPerson
+    + (ctx.notUpdated ? '<div class="warn-chip cell-warn">⚠ Chưa cập nhật tuần trước</div>' : '');
   const contentPlan = (t, ctx) => t.description ? escapeHtml(t.description) : '<span style="color:var(--muted)">—</span>';
 
   document.getElementById('weeklyRange').textContent = fullWeekLabel(week);

@@ -88,9 +88,10 @@ CREATE INDEX IF NOT EXISTS idx_history_task ON task_history(task_id);
 
 db.exec(`
 DELETE FROM task_journals WHERE id NOT IN (
-  SELECT MAX(id) FROM task_journals GROUP BY task_id, week_start);
+  SELECT MAX(id) FROM task_journals GROUP BY task_id, author_id, week_start);
 DROP INDEX IF EXISTS idx_journals_task;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_journals_task_week ON task_journals(task_id, week_start);
+DROP INDEX IF EXISTS idx_journals_task_week;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_journals_task_author_week ON task_journals(task_id, author_id, week_start);
 `);
 
 const tasksSql = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'").get();
@@ -133,6 +134,24 @@ if (tasksSql && !tasksSql.sql.includes("'cancelled'")) {
     COMMIT;
     PRAGMA foreign_keys = ON;
   `);
+}
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS task_assignees (
+  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  PRIMARY KEY (task_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_task_assignees_user ON task_assignees(user_id);
+`);
+
+const missingAssignees = db.prepare(`
+  SELECT t.id AS task_id, t.assignee_id AS user_id
+  FROM tasks t
+  WHERE NOT EXISTS (SELECT 1 FROM task_assignees a WHERE a.task_id = t.id)`).all();
+if (missingAssignees.length) {
+  const insAssignee = db.prepare('INSERT OR IGNORE INTO task_assignees (task_id, user_id) VALUES (?, ?)');
+  for (const r of missingAssignees) insAssignee.run(r.task_id, r.user_id);
 }
 
 function getSetting(key) {

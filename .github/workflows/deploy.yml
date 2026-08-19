@@ -17,5 +17,5 @@ jobs:
           script: |
             cd /opt/baocaotuan
             git pull --ff-only origin main
-            npm install --omit=dev
-            pm2 restart baocaotuan --update-env || pm2 start ecosystem.config.cjs
+            docker compose up -d --build --remove-orphans
+            docker image prune -f

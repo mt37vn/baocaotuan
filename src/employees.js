@@ -46,7 +46,10 @@ router.patch('/employees/:id', requireDirector, (req, res) => {
     sets.push('password_hash = ?'); vals.push(bcrypt.hashSync(v, 10));
   }
   if (active !== undefined) {
-    const hasOpen = db.prepare("SELECT COUNT(*) AS c FROM tasks WHERE assignee_id = ? AND status != 'done'").get(u.id).c;
+    const hasOpen = db.prepare(`SELECT COUNT(*) AS c FROM tasks t
+      WHERE t.status != 'done'
+        AND (t.assignee_id = ? OR EXISTS (SELECT 1 FROM task_assignees a WHERE a.task_id = t.id AND a.user_id = ?))`)
+      .get(u.id, u.id).c;
     if (!active && hasOpen > 0) {
       return res.status(400).json({ error: `Không thể khóa nhân viên khi còn ${hasOpen} việc chưa hoàn thành.` });
     }
@@ -61,7 +64,9 @@ router.patch('/employees/:id', requireDirector, (req, res) => {
 router.delete('/employees/:id', requireDirector, (req, res) => {
   const u = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'employee'").get(Number(req.params.id));
   if (!u) return res.status(404).json({ error: 'Không tìm thấy nhân viên.' });
-  const c = db.prepare('SELECT COUNT(*) AS c FROM tasks WHERE assignee_id = ?').get(u.id).c;
+  const c = db.prepare(`SELECT COUNT(*) AS c FROM tasks t
+    WHERE t.assignee_id = ? OR EXISTS (SELECT 1 FROM task_assignees a WHERE a.task_id = t.id AND a.user_id = ?)`)
+    .get(u.id, u.id).c;
   if (c > 0) return res.status(400).json({ error: 'Nhân viên còn việc trong bảng, không thể xóa.' });
   db.prepare('DELETE FROM users WHERE id = ?').run(u.id);
   res.json({ ok: true });

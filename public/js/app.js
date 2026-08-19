@@ -181,7 +181,9 @@ async function renderEmployees() {
   const emps = await api('GET', '/api/employees');
   const counts = new Map();
   const data = await api('GET', '/api/board?from=' + addWeeks(todayMonday(), -4) + '&to=' + todayMonday());
-  for (const t of data.tasks) counts.set(t.assignee_id, (counts.get(t.assignee_id) || 0) + 1);
+  for (const t of data.tasks) {
+    for (const id of t.assignee_ids) counts.set(id, (counts.get(id) || 0) + 1);
+  }
   document.getElementById('empList').innerHTML = emps.map(e => `
     <div class="emp-row">
       <span class="emp-name">${escapeHtml(e.name)}${e.active ? '' : ' <span style="color:var(--muted)">(đã khóa)</span>'}</span>
